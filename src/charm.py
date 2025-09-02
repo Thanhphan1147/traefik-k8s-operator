@@ -144,7 +144,7 @@ class TraefikIngressCharm(CharmBase):
 
     _stored = StoredState()
 
-    def __init__(self, *args):  # ignore: no-untyped-def
+    def __init__(self, *args):  # type: ignore
         """Initialize the charm."""
         super().__init__(*args)
 

@@ -71,7 +71,7 @@ class StaticConfigMergeConflictError(TraefikError):
     """Raised when static configs coming from different sources can't be merged."""
 
 
-def static_config_deep_merge(dict1: dict, dict2: dict, _path: Optional[list] = None):
+def static_config_deep_merge(dict1: dict, dict2: dict, _path: Optional[list] = None) -> dict:
     """In-place deep merge dict2 into dict1."""
     _path = _path or []
 
