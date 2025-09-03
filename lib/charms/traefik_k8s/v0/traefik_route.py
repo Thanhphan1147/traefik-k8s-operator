@@ -350,7 +350,7 @@ class TraefikRouteRequirer(Object):
             relation_name: Name of the relation. Defaults to "traefik-route".
             raw: Whether or not to enable raw mode. Defaults to False.
         """
-        super(TraefikRouteRequirer, self).__init__(charm, relation_name)
+        super().__init__(charm, relation_name)
         self._stored.set_default(external_host=None, scheme=None)
 
         self._charm = charm

@@ -135,4 +135,4 @@ disallow_untyped_defs = false
 module = "tests.*"
 
 [tool.pylint]
-disable = "wrong-import-order"
+disable = "wrong-import-order,fixme"

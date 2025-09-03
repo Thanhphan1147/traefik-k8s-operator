@@ -96,7 +96,7 @@ RELATION_INTERFACE = "ingress"
 log = logging.getLogger(__name__)
 BUILTIN_JUJU_KEYS = {"ingress-address", "private-address", "egress-subnets"}
 
-PYDANTIC_IS_V1 = int(pydantic.version.VERSION.split(".")[0]) < 2
+PYDANTIC_IS_V1 = int(pydantic.version.VERSION.split(".")[0]) < 2  # pylint: disable=no-member
 if PYDANTIC_IS_V1:  # noqa
     from pydantic import validator
 
@@ -154,7 +154,7 @@ if PYDANTIC_IS_V1:  # noqa
                 databag[self._NEST_UNDER] = self.json(by_alias=True, exclude_defaults=True)
                 return databag
 
-            for key, value in self.dict(by_alias=True, exclude_defaults=True).items():  # type: ignore  # noqa
+            for key, value in self.dict(by_alias=True, exclude_defaults=True).items():  # type: ignore  # noqa  # pylint: disable=line-too-long
                 databag[key] = json.dumps(value)
 
             return databag
@@ -269,6 +269,8 @@ class IngressHealthCheck(BaseModel):
     timeout: str = Field(default="5s", description="Maximum duration for a health check request.")
 
 
+# Disable pylint error because pydantic wants 'cls' as first arg and we're using pydantic v1
+# pylint: disable=no-self-argument
 class IngressRequirerAppData(DatabagModel):
     """Ingress requirer application databag model."""
 
@@ -345,8 +347,8 @@ class IngressRequirerUnitData(DatabagModel):
         try:
             ipaddress.IPv6Address(ip)
             return ip
-        except ipaddress.AddressValueError:
-            raise ValueError(f"{ip!r} is not a valid ip address")
+        except ipaddress.AddressValueError as exc:
+            raise ValueError(f"{ip!r} is not a valid ip address") from exc
 
 
 class RequirerSchema(BaseModel):
@@ -396,15 +398,12 @@ class _IngressPerAppBase(Object):
 
     def _handle_relation(self, event: RelationEvent) -> None:
         """Subclasses should implement this method to handle a relation update."""
-        pass
 
     def _handle_relation_broken(self, event: RelationEvent) -> None:
         """Subclasses should implement this method to handle a relation breaking."""
-        pass
 
     def _handle_upgrade_or_leader(self, event: EventBase) -> None:
         """Subclasses should implement this method to handle upgrades or leadership change."""
-        pass
 
 
 class _IPAEvent(RelationEvent):
@@ -600,7 +599,9 @@ class IngressPerAppProvider(_IngressPerAppBase):
         """Publish to the app databag the ingress url."""
         ingress_url = {"url": url}
         try:
-            IngressProviderAppData(ingress=ingress_url).dump(relation.data[self.app])  # type: ignore  # noqa
+            IngressProviderAppData(
+                ingress=ingress_url  # type:ignore
+            ).dump(relation.data[self.app])
         except pydantic.ValidationError as e:
             # If we cannot validate the url as valid, publish an empty databag and log the error.
             log.error(f"Failed to validate ingress url '{url}' - got ValidationError {e}")
