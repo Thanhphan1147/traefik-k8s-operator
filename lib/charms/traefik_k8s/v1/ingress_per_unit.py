@@ -1,5 +1,6 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
+# pylint: disable=duplicate-code
 
 r"""# Interface Library for ingress_per_unit.
 
@@ -207,8 +208,9 @@ class RelationException(RuntimeError):
         """
         super().__init__(relation)
         self.args = (
-            "There is an error with the relation {}:{} with {}".format(
-                relation.name, relation.id, entity.name
+            (
+                f"There is an error with the relation {relation.name}:{relation.id} "
+                f"with {entity.name}"
             ),
         )
         self.relation = relation
@@ -230,10 +232,11 @@ class RelationPermissionError(RelationException):
             entity: Application and Unit.
             message: Exception message.
         """
-        super(RelationPermissionError, self).__init__(relation, entity)
+        super().__init__(relation, entity)
         self.args = (
-            "Unable to write data to relation '{}:{}' with {}: {}".format(
-                relation.name, relation.id, entity.name, message
+            (
+                f"Unable to write data to relation '{relation.name}:{relation.id}' "
+                f"with {entity.name}: {message}"
             ),
         )
 
@@ -273,15 +276,12 @@ class _IngressPerUnitBase(Object):
 
     def _handle_relation(self, event: RelationEvent) -> None:
         """Subclasses should implement this method to handle a relation update."""
-        pass
 
     def _handle_relation_broken(self, event: RelationEvent) -> None:
         """Subclasses should implement this method to handle a relation breaking."""
-        pass
 
     def _handle_upgrade_or_leader(self, event: EventBase) -> None:
         """Subclasses should implement this method to handle upgrades or leadership change."""
-        pass
 
     def is_ready(self, relation: Optional[Relation] = None) -> bool:
         """Checks whether the given relation is ready.
@@ -337,7 +337,7 @@ class IngressPerUnitProvider(_IngressPerUnitBase):
         except RelationDataMismatchError as e:
             self.on.data_removed.emit(relation)  # type: ignore
             log.warning(
-                "relation data mismatch: {} data_removed ingress for {}.".format(e, relation)
+                "relation data mismatch: %s data_removed ingress for %s.", str(e), relation
             )
             return
 
@@ -364,8 +364,8 @@ class IngressPerUnitProvider(_IngressPerUnitBase):
 
         try:
             requirer_units_data = self._requirer_units_data(relation)
-        except Exception:
-            log.exception("Cannot fetch ingress data for the '{}' relation".format(relation))
+        except Exception:  # pylint: disable=broad-exception-caught
+            log.exception("Cannot fetch ingress data for the '%s' relation", str(relation))
             return False
 
         return any(requirer_units_data.values())
@@ -424,9 +424,9 @@ class IngressPerUnitProvider(_IngressPerUnitBase):
             _validate_data(ingress, INGRESS_PROVIDES_APP_SCHEMA)
         except DataValidationError as e:
             log.error(
-                "unable to publish url to {}: corrupted application databag ({})".format(
-                    unit_name, e
-                )
+                "unable to publish url to %s: corrupted application databag (%s)",
+                unit_name,
+                str(e),
             )
             return
 
@@ -448,9 +448,13 @@ class IngressPerUnitProvider(_IngressPerUnitBase):
             relation.data
         except ModelError as e:
             log.warning(
-                "error {} accessing relation data for {!r}. "
-                "Probably a ghost of a dead relation is still "
-                "lingering around.".format(e, relation.name)
+                (
+                    "error %s accessing relation data for %s. "
+                    "Probably a ghost of a dead relation is still "
+                    "lingering around."
+                ),
+                str(e),
+                relation.name,
             )
             return
         del relation.data[self.app]["ingress"]
@@ -471,18 +475,18 @@ class IngressPerUnitProvider(_IngressPerUnitBase):
                 remote_data = self._get_requirer_unit_data(relation, remote_unit)
             except KeyError:
                 # this remote unit didn't share data yet
-                log.warning("Remote unit {} not ready.".format(remote_unit.name))
+                log.warning("Remote unit %s not ready.", remote_unit.name)
                 continue
             except DataValidationError as e:
                 # this remote unit sent invalid data.
-                log.error("Remote unit {} sent invalid data ({}).".format(remote_unit.name, e))
+                log.error("Remote unit %s sent invalid data (%s).", remote_unit.name, str(e))
                 continue
 
             remote_data["port"] = int(remote_data["port"])
             requirer_units_data[remote_unit] = remote_data
         return requirer_units_data
 
-    def _get_requirer_unit_data(self, relation: Relation, remote_unit: Unit) -> RequirerData:  # type: ignore  # noqa
+    def _get_requirer_unit_data(self, relation: Relation, remote_unit: Unit) -> RequirerData:
         """Fetch and validate the requirer unit data for this unit.
 
         For convenience, we convert 'port' to integer.
@@ -575,8 +579,8 @@ class _IPUEvent(RelationEvent):
     def __init__(self, handle, relation, *args, **kwargs):  # type: ignore
         super().__init__(handle, relation)
 
-        if not len(self.__args__) == len(args):
-            raise TypeError("expected {} args, got {}".format(len(self.__args__), len(args)))
+        if len(self.__args__) != len(args):
+            raise TypeError(f"expected {len(self.__args__)} args, got {len(args)}")
 
         for attr, obj in zip(self.__args__, args):
             setattr(self, attr, obj)
@@ -592,9 +596,9 @@ class _IPUEvent(RelationEvent):
                 dct[attr] = obj
             except ValueError as e:
                 raise ValueError(
-                    "cannot automagically serialize {}: "
+                    f"cannot automagically serialize {obj}: "
                     "override this method and do it "
-                    "manually.".format(obj)
+                    "manually."
                 ) from e
         return dct
 
@@ -671,7 +675,7 @@ class IngressPerUnitRequirer(_IngressPerUnitBase):
     # handling is a relation-broken one.
     _stored = StoredState()
 
-    def __init__(
+    def __init__(  # pylint disable=too-many-arguments
         self,
         charm: CharmBase,
         relation_name: str = DEFAULT_RELATION_NAME,
@@ -748,7 +752,11 @@ class IngressPerUnitRequirer(_IngressPerUnitBase):
         self._stored.current_urls = current_urls  # type: ignore
 
         removed = previous_urls.keys() - current_urls.keys()  # type: ignore
-        changed = {a for a in current_urls if current_urls[a] != previous_urls.get(a)}  # type: ignore  # noqa
+        changed = {
+            a
+            for a in current_urls
+            if current_urls[a] != previous_urls.get(a)  # type: ignore
+        }
 
         this_unit_name = self.unit.name
         # do not use self.relation in this context because if
@@ -782,7 +790,7 @@ class IngressPerUnitRequirer(_IngressPerUnitBase):
         """The established Relation instance, or None if still unrelated."""
         return self.relations[0] if self.relations else None
 
-    def is_ready(self) -> bool:  # type: ignore
+    def is_ready(self, _relation: Optional[Relation] = None) -> bool:  # type: ignore
         """Checks whether the given relation is ready.
 
         Or any relation if not specified.
@@ -856,8 +864,10 @@ class IngressPerUnitRequirer(_IngressPerUnitBase):
             raw = relation.data.get(relation.app, {}).get("ingress")  # type: ignore
         except ModelError as e:
             log.debug(
-                "Error {} attempting to read remote app data; "
-                "probably we are in a relation_departed hook".format(e)
+                (
+                    "Error %s attempting to read remote app data; "
+                    "probably we are in a relation_departed hook"
+                ), str(e)
             )
             return {}
 

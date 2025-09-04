@@ -417,8 +417,8 @@ class _IPAEvent(RelationEvent):
     def __init__(self, handle, relation, *args, **kwargs):  # type: ignore
         super().__init__(handle, relation)
 
-        if not len(self.__args__) == len(args):
-            raise TypeError("expected {} args, got {}".format(len(self.__args__), len(args)))
+        if len(self.__args__) != len(args):
+            raise TypeError(f"expected {len(self.__args__)} args, got {len(args)}")
 
         for attr, obj in zip(self.__args__, args):
             setattr(self, attr, obj)
@@ -434,9 +434,8 @@ class _IPAEvent(RelationEvent):
                 dct[attr] = obj
             except ValueError as e:
                 raise ValueError(
-                    "cannot automagically serialize {}: "
-                    "override this method and do it "
-                    "manually.".format(obj)
+                    f"cannot automagically serialize {obj}: "
+                    "override this method and do it manually."
                 ) from e
 
         return dct
@@ -485,20 +484,6 @@ class IngressPerAppProvider(_IngressPerAppBase):
 
     on = IngressPerAppProviderEvents()  # type: ignore
 
-    def __init__(
-        self,
-        charm: CharmBase,
-        relation_name: str = DEFAULT_RELATION_NAME,
-    ):
-        """Constructor for IngressPerAppProvider.
-
-        Args:
-            charm: The charm that is instantiating the instance.
-            relation_name: The name of the relation endpoint to bind to
-                (defaults to "ingress").
-        """
-        super().__init__(charm, relation_name)
-
     def _handle_relation(self, event: RelationEvent) -> None:
         # created, joined or changed: if remote side has sent the required data:
         # notify listeners.
@@ -526,9 +511,10 @@ class IngressPerAppProvider(_IngressPerAppBase):
             relation.data
         except ModelError as e:
             log.warning(
-                "error {} accessing relation data for {!r}. "
-                "Probably a ghost of a dead relation is still "
-                "lingering around.".format(e, relation.name)
+                (
+                    "error %s accessing relation data for %s. "
+                    "Probably a ghost of a dead relation is still lingering around."
+                ), str(e), relation.name
             )
             return
         del relation.data[self.app]["ingress"]
@@ -544,7 +530,7 @@ class IngressPerAppProvider(_IngressPerAppBase):
                 data = IngressRequirerUnitData.load(databag)
                 out.append(cast(IngressRequirerUnitData, data))
             except pydantic.ValidationError:
-                log.info(f"failed to validate remote unit data for {unit}")
+                log.info("failed to validate remote unit data for %s", unit)
                 raise
         return out
 
@@ -575,7 +561,7 @@ class IngressPerAppProvider(_IngressPerAppBase):
         try:
             self.get_data(relation)
         except (DataValidationError, NotReadyError) as e:
-            log.debug("Provider not ready; validation error encountered: %s" % str(e))
+            log.debug("Provider not ready; validation error encountered: %s", str(e))
             return False
         return True
 
@@ -604,12 +590,14 @@ class IngressPerAppProvider(_IngressPerAppBase):
             ).dump(relation.data[self.app])
         except pydantic.ValidationError as e:
             # If we cannot validate the url as valid, publish an empty databag and log the error.
-            log.error(f"Failed to validate ingress url '{url}' - got ValidationError {e}")
+            log.error("Failed to validate ingress url '%s' - got ValidationError %s", url, str(e))
             log.error(
                 (
-                    f"url was not published to ingress relation for {relation.app}."
-                    f"This error is likely due to an error or misconfiguration of the"
-                    "charm calling this library."
+                    (
+                        "url was not published to ingress relation for %s."
+                        "This error is likely due to an error or misconfiguration of the"
+                        "charm calling this library."
+                    ), relation.app
                 )
             )
             IngressProviderAppData(ingress=None).dump(relation.data[self.app])  # type: ignore
@@ -636,8 +624,8 @@ class IngressPerAppProvider(_IngressPerAppBase):
             if not ingress_relation.app:
                 log.warning(
                     (
-                        f"no app in relation {ingress_relation} when fetching proxied endpoints:"
-                        "skipping"
+                        "no app in relation %s when fetching proxied endpoints: skipping",
+                        str(ingress_relation)
                     )
                 )
                 continue
@@ -645,13 +633,15 @@ class IngressPerAppProvider(_IngressPerAppBase):
                 ingress_data = self._published_url(ingress_relation)
             except NotReadyError:
                 log.warning(
-                    f"no published url found in {ingress_relation}: "
-                    f"traefik didn't publish_url yet to this relation."
+                    (
+                        "no published url found in %s: "
+                        "traefik didn't publish_url yet to this relation."
+                    ), str(ingress_relation)
                 )
                 continue
 
             if not ingress_data:
-                log.warning(f"relation {ingress_relation} not ready yet: try again in some time.")
+                log.warning("relation %s not ready yet: try again in some time.", ingress_relation)
                 continue
 
             # Validation above means ingress cannot be None, but type checker doesn't know that.
@@ -692,7 +682,7 @@ class IngressPerAppRequirer(_IngressPerAppBase):
     _stored = StoredState()
     _auto_data: Optional[Tuple[Optional[str], Optional[str], int]]
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         charm: CharmBase,
         relation_name: str = DEFAULT_RELATION_NAME,
@@ -791,7 +781,7 @@ class IngressPerAppRequirer(_IngressPerAppBase):
         try:
             return bool(self._get_url_from_relation_data())
         except DataValidationError as e:
-            log.debug("Requirer not ready; validation error encountered: %s" % str(e))
+            log.debug("Requirer not ready; validation error encountered: %s", str(e))
             return False
 
     def _publish_auto_data(self) -> None:
@@ -799,7 +789,7 @@ class IngressPerAppRequirer(_IngressPerAppBase):
             host, ip, port = self._auto_data
             self.provide_ingress_requirements(host=host, ip=ip, port=port)
 
-    def provide_ingress_requirements(
+    def provide_ingress_requirements(  # pylint: disable=too-many-arguments
         self,
         *,
         scheme: Optional[str] = None,
@@ -820,7 +810,7 @@ class IngressPerAppRequirer(_IngressPerAppBase):
         for relation in self.relations:
             self._provide_ingress_requirements(scheme, host, ip, port, relation)
 
-    def _provide_ingress_requirements(
+    def _provide_ingress_requirements(  # pylint: disable=too-many-arguments
         self,
         scheme: Optional[str],
         host: Optional[str],
@@ -912,8 +902,10 @@ class IngressPerAppRequirer(_IngressPerAppBase):
             databag = relation.data[relation.app]
         except ModelError as e:
             log.debug(
-                f"Error {e} attempting to read remote app data; "
-                f"probably we are in a relation_departed hook"
+                (
+                    "Error %s attempting to read remote app data; "
+                    "probably we are in a relation_departed hook"
+                ), str(e)
             )
             return None
 

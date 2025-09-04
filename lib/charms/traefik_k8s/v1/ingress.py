@@ -1,5 +1,7 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
+# Skipping pylint for legacy v1 library
+# pylint: skip-file
 
 r"""# [DEPRECATED!] Interface Library for ingress.
 
