@@ -645,7 +645,7 @@ class IngressPerAppProvider(_IngressPerAppBase):
                 continue
 
             # Validation above means ingress cannot be None, but type checker doesn't know that.
-            ingress = cast(IngressProviderAppData, ingress_data)
+            ingress = cast(IngressProviderAppData, ingress_data.ingress)
             if PYDANTIC_IS_V1:
                 results[ingress_relation.app.name] = ingress.dict()
             else:

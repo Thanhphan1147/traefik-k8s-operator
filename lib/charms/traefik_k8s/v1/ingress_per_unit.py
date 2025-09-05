@@ -675,7 +675,7 @@ class IngressPerUnitRequirer(_IngressPerUnitBase):
     # handling is a relation-broken one.
     _stored = StoredState()
 
-    def __init__(  # pylint disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         charm: CharmBase,
         relation_name: str = DEFAULT_RELATION_NAME,
